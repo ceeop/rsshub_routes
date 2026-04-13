@@ -1,0 +1,55 @@
+name: Auto Build Latest RSSHub with Custom Routes
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # 每天UTC时间凌晨2点（北京时间上午10点）自动合并打包最新版
+  workflow_dispatch:     # 允许在GitHub网页随时手动触发
+  push:
+    branches: [ "main", "master" ] # 当你提交新的路由代码时触发打包
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout Custom Routes
+        uses: actions/checkout@v4
+        with:
+          path: custom-source
+
+      - name: Checkout Official RSSHub (Latest Master)
+        uses: actions/checkout@v4
+        with:
+          repository: DIYgod/RSSHub
+          path: official-rsshub
+          ref: master
+
+      - name: Inject Custom Routes
+        run: |
+          echo "Copying custom routes to official rsshub instance..."
+          # 将 my-routes 里的所有的内容，拷贝覆盖官方源码的相关路径
+          cp -r custom-source/my-routes/* official-rsshub/lib/routes/ || echo "No custom routes to copy"
+          
+      - name: Log in to the GitHub Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Custom Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./official-rsshub
+          push: true
+          # 打包的镜像名称，格式形如：ghcr.io/你的用户名/rsshub-custom-repo:latest 
+          tags: ghcr.io/${{ github.repository }}:latest
+          # 缓存设置，大幅度加速编译时间
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

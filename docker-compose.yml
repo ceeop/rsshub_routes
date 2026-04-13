@@ -1,0 +1,48 @@
+services:
+    rsshub:
+        # 修改成你最终生成的 GitHub 镜像包的实际地址⬇️ (所有的字母强制变为全小写)
+        image: ghcr.io/你的github用户名/你的仓库名:latest
+        restart: always
+        ports:
+            - '1200:1200'
+        environment:
+            NODE_ENV: production
+            CACHE_TYPE: redis
+            REDIS_URL: 'redis://redis:6379/'
+            PUPPETEER_WS_ENDPOINT: 'ws://browserless:3000' # 如果你抓取不需要 puppeteer，可以注释掉这行以及下面的 browserless
+        healthcheck:
+            test: ['CMD', 'curl', '-f', 'http://localhost:1200/healthz']
+            interval: 30s
+            timeout: 10s
+            retries: 3
+        depends_on:
+            - redis
+            - browserless
+
+    browserless:
+        image: browserless/chrome
+        restart: always
+        ulimits:
+            core:
+                hard: 0
+                soft: 0
+        healthcheck:
+            test: ['CMD', 'curl', '-f', 'http://localhost:3000/pressure']
+            interval: 30s
+            timeout: 10s
+            retries: 3
+
+    redis:
+        image: redis:alpine
+        restart: always
+        volumes:
+            - redis-data:/data
+        healthcheck:
+            test: ['CMD', 'redis-cli', 'ping']
+            interval: 30s
+            timeout: 10s
+            retries: 5
+            start_period: 5s
+
+volumes:
+    redis-data:
