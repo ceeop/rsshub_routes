@@ -88,7 +88,7 @@ export const route: Route = {
 
                     // 新华每日电讯的正文很多时候包在特定的 div 或以特殊排版存在
                     // 此处尽量选取内容所在的父容器
-                    const contentNode = $3('.main-news, .main-art, div[align=center]').first();
+                    const contentNode = $3('.neirong, .main-news, .main-art, div[align=center]').first();
                     
                     if (contentNode.length > 0) {
                         item.description = contentNode.html();
