@@ -30,10 +30,30 @@ export const route: Route = {
     maintainers: ['lhteen'],
     handler: async (ctx) => {
         const lang = ctx.req.param('lang') || 'en';
-        let id = ctx.req.param('id') || '9097';
+        let id = ctx.req.param('id');
 
-        // Support passing the category string e.g., 's-9097'
-        if (/^s-\d+$/.test(id)) {
+        // If no ID is provided, dynamically fetch the Top Stories ID for the selected language
+        if (id === undefined) {
+            const defaultNavUrl = `https://www.dw.com/graph-api/en/content/navigation/9097`;
+            const navigation = await cache.tryGet('dw:navigation:topStories', async () => {
+                const res = await ofetch(defaultNavUrl);
+                return res?.data?.content?.topStoriesNavigations || [];
+            });
+            
+            const langItem = navigation.find((item: any) => item.namedUrl.startsWith(`/${lang}/`));
+            
+            if (langItem) {
+                const match = langItem.namedUrl.match(/\/s-(\d+)$/i);
+                if (match) {
+                    id = match[1];
+                }
+            }
+            
+            if (!id) {
+                id = '9097'; // fallback to english default
+            }
+        } else if (/^s-\d+$/.test(id)) {
+            // Support passing the category string e.g., 's-9097'
             id = id.replace('s-', '');
         }
 
