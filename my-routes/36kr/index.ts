@@ -9,8 +9,10 @@ import { parseDate } from '@/utils/parse-date';
 import { ProcessItem, rootUrl } from './utils';
 
 const shortcuts = {
-    '/information': '/information/web_news',
-    '/information/latest': '/information/web_news',
+    '/information': '/information/web_news/latest/',
+    '/information/latest': '/information/web_news/latest/',
+    '/information/web_news': '/information/web_news/latest/',
+    '/information/web_news/latest': '/information/web_news/latest/',
     '/information/recommend': '/information/web_recommend',
     '/information/life': '/information/happy_life',
     '/information/estate': '/information/real_estate',
@@ -20,7 +22,7 @@ const shortcuts = {
 export const route: Route = {
     path: '/:category/:subCategory?/:keyword?',
     categories: ['new-media'],
-    example: '/36kr/newsflashes',
+    example: '/36kr/news',
     parameters: {
         category: '分类，必填项',
         subCategory: '子分类，选填项，目的是为了兼容老逻辑',
@@ -32,11 +34,11 @@ export const route: Route = {
 | ------- | -------- | -------- | -------- | -------- | --------| -------- | -------- |
 | news | newsflashes | recommend | life | estate | workplace | search/articles/关键词 | search/articles/关键词 |
 
-[最新资讯页](https://www.36kr.com/information/web_news/latest/) 对应路由为 \`/36kr/information/web_news/latest\`。`,
+[最新资讯页](https://www.36kr.com/information/web_news/latest/) 对应路由为 \`/36kr/news\`，也可使用 \`/36kr/information/web_news/latest\`。`,
     radar: [
         {
             source: ['36kr.com/information/web_news/latest/'],
-            target: '/information/web_news/latest',
+            target: '/news',
         },
     ],
     handler,
@@ -56,7 +58,13 @@ async function handler(ctx) {
 
     const $ = load(response.data);
 
-    const data = JSON.parse(response.data.match(/"itemList":(\[.*?])/)[1]);
+    const itemListMatch = response.data.match(/"itemList":(\[.*?])/);
+
+    if (!itemListMatch?.[1]) {
+        throw new Error(`36氪页面未返回资讯列表，可能触发了站点防护：${currentUrl}`);
+    }
+
+    const data = JSON.parse(itemListMatch[1]);
 
     let items = data
         .slice(0, ctx.req.query('limit') ? Number.parseInt(ctx.req.query('limit')) : 30)
@@ -65,7 +73,7 @@ async function handler(ctx) {
             item = item.templateMaterial ?? item;
             return {
                 title: item.widgetTitle.replaceAll(/<\/?em>/g, ''),
-                author: item.author,
+                author: item.authorName ?? item.author,
                 pubDate: parseDate(item.publishTime),
                 link: `${rootUrl}/${path === '/newsflashes' ? 'newsflashes' : 'p'}/${item.itemId}`,
                 description: item.widgetContent ?? item.content,
