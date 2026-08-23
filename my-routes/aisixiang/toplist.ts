@@ -95,9 +95,10 @@ function getArticle(item: ListItem): Promise<DataItem> {
     return cache.tryGet<DataItem>(item.link, async () => {
         const response = await ofetch<string>(item.link, { parseResponse: (text) => text });
         const $ = load(response);
-        const content = $('div.article-content').first();
+        const articleContent = $('div.article-content').first();
+        const content = articleContent.length ? articleContent : $('div#content').first();
 
-        if (!content.length) {
+        if (!content.length || !content.html()?.trim()) {
             throw new Error(`未能解析爱思想文章正文：${item.link}`);
         }
 
